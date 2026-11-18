@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	gs "github.com/iegomez/mosquitto-go-auth/grpc"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -166,15 +166,38 @@ func (o *GRPC) Halt() {
 	}
 }
 
+// interceptorLogger adapts a logrus logger to the go-grpc-middleware logging interface.
+func interceptorLogger(l log.FieldLogger) logging.Logger {
+	return logging.LoggerFunc(func(_ context.Context, lvl logging.Level, msg string, fields ...any) {
+		f := make(map[string]any, len(fields)/2)
+		i := logging.Fields(fields).Iterator()
+		for i.Next() {
+			k, v := i.At()
+			f[k] = v
+		}
+		entry := l.WithFields(f)
+
+		switch lvl {
+		case logging.LevelDebug:
+			entry.Debug(msg)
+		case logging.LevelInfo:
+			entry.Info(msg)
+		case logging.LevelWarn:
+			entry.Warn(msg)
+		default:
+			entry.Error(msg)
+		}
+	})
+}
+
 func setup(hostname string, caCert string, tlsCert string, tlsKey string, withBlock bool) ([]grpc.DialOption, error) {
-	logrusEntry := log.NewEntry(log.StandardLogger())
-	logrusOpts := []grpc_logrus.Option{
-		grpc_logrus.WithLevels(grpc_logrus.DefaultCodeToLevel),
+	logOpts := []logging.Option{
+		logging.WithLevels(logging.DefaultServerCodeToLevel),
 	}
 
 	nsOpts := []grpc.DialOption{
 		grpc.WithUnaryInterceptor(
-			grpc_logrus.UnaryClientInterceptor(logrusEntry, logrusOpts...),
+			logging.UnaryClientInterceptor(interceptorLogger(log.StandardLogger()), logOpts...),
 		),
 	}
 

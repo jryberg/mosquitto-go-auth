@@ -5,7 +5,7 @@ ARG MOSQUITTO_VERSION=2.0.18
 ARG LWS_VERSION=4.2.2
 
 # Use debian:stable-slim as a builder for Mosquitto and dependencies.
-FROM debian:stable-slim as mosquitto_builder
+FROM debian:stable-slim@sha256:fbfb4059d2127120aa05b6e6064523d2102552f0cf0026ddf0701c12f1f8f3e0 as mosquitto_builder
 ARG MOSQUITTO_VERSION
 ARG LWS_VERSION
 
@@ -52,7 +52,7 @@ RUN set -ex; \
     make install;
 
 # Use golang:latest as a builder for the Mosquitto Go Auth plugin.
-FROM --platform=$BUILDPLATFORM golang:latest AS go_auth_builder
+FROM --platform=$BUILDPLATFORM golang:latest@sha256:205c7636d74e0ffbe3d007162df7d74f859f5a8c8322dfb9f907977686c126cf AS go_auth_builder
 
 ENV CGO_CFLAGS="-I/usr/local/include -fPIC"
 ENV CGO_LDFLAGS="-shared -Wl,-unresolved-symbols=ignore-all"
@@ -63,7 +63,7 @@ ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
 # Install TARGETPLATFORM parser to translate its value to GOOS, GOARCH, and GOARM
-COPY --from=tonistiigi/xx:golang / /
+COPY --from=tonistiigi/xx:golang@sha256:03e312d98f8db5a7adbf403882347ee4cb620a97bd445b0cfdc8e6b47d3b319c / /
 RUN go env
 
 # Install needed libc and gcc for target platform.
@@ -92,7 +92,7 @@ RUN set -ex; \
 	  go build pw-gen/pw.go
 
 #Start from a new image.
-FROM debian:stable-slim
+FROM debian:stable-slim@sha256:fbfb4059d2127120aa05b6e6064523d2102552f0cf0026ddf0701c12f1f8f3e0
 
 RUN set -ex; \
     apt update; \

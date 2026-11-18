@@ -6,11 +6,11 @@ ARG MOSQUITTO_VERSION=1.6.14
 ARG LWS_VERSION=4.2.2
 
 # Use debian:stable-slim as a builder for Mosquitto and dependencies.
-FROM debian:stable-slim as mosquitto_builder
+FROM debian:stable-slim@sha256:fbfb4059d2127120aa05b6e6064523d2102552f0cf0026ddf0701c12f1f8f3e0 as mosquitto_builder
 ARG MOSQUITTO_VERSION
 ARG LWS_VERSION
 
-ENV GO_VERSION=1.24.3
+ENV GO_VERSION=1.27.4
 # Used in run-test-in-docker.sh to check if the script
 # is actually run in a container
 ENV MOSQUITTO_GO_AUTH_TEST_RUNNING_IN_A_CONTAINER=true
