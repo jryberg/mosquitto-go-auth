@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
 	"math/big"
@@ -73,6 +74,10 @@ func (h pbkdf2Hasher) Hash(password string) (string, error) {
 // Parsing reference: https://github.com/P-H-C/phc-string-format/blob/master/phc-sf-spec.md
 func (h pbkdf2Hasher) Compare(password string, passwordHash string) bool {
 	hashSplit := h.getFields(passwordHash)
+	if len(hashSplit) == 0 {
+		log.Errorf("invalid PBKDF2 hash supplied, empty hash")
+		return false
+	}
 
 	var (
 		err            error
@@ -84,6 +89,11 @@ func (h pbkdf2Hasher) Compare(password string, passwordHash string) bool {
 		keyLen         int
 	)
 	if hashSplit[0] == "PBKDF2" {
+		if len(hashSplit) != 5 {
+			log.Errorf("invalid PBKDF2 hash supplied, expected 5 elements, got: %d", len(hashSplit))
+			return false
+		}
+
 		algorithm = hashSplit[1]
 		iterations, err = strconv.Atoi(hashSplit[2])
 		if err != nil {
@@ -111,12 +121,21 @@ func (h pbkdf2Hasher) Compare(password string, passwordHash string) bool {
 		keyLen = len(hashedPassword)
 
 	} else if hashSplit[0] == "pbkdf2-sha512" {
+		if len(hashSplit) != 4 {
+			log.Errorf("invalid PBKDF2 hash supplied, expected 4 elements, got: %d", len(hashSplit))
+			return false
+		}
+
 		algorithm = "sha512"
 		paramString = hashSplit[1]
 
 		opts := strings.Split(paramString, ",")
 		for _, opt := range opts {
 			parts := strings.Split(opt, "=")
+			if len(parts)%2 != 0 {
+				log.Errorf("invalid PBKDF2 hash supplied, malformed options")
+				return false
+			}
 			for i := 0; i < len(parts); i += 2 {
 				key := parts[i]
 				val := parts[i+1]
@@ -145,29 +164,23 @@ func (h pbkdf2Hasher) Compare(password string, passwordHash string) bool {
 		}
 
 		hashedPassword, err = base64.StdEncoding.WithPadding(base64.NoPadding).DecodeString(hashSplit[3])
-	} else {
-		log.Errorf("invalid PBKDF2 hash supplied, unrecognized format \"%s\"", hashSplit[0])
-		return false
-	}
-
-	newHash := h.hashWithSalt(password, salt, iterations, algorithm, keyLen)
-	hashSplit = h.getFields(newHash)
-	newHashedPassword, err := base64.StdEncoding.DecodeString(hashSplit[4])
-	if err != nil {
-		log.Errorf("base64 salt error: %s", err)
-		return false
-	}
-
-	return h.compareBytes(hashedPassword, newHashedPassword)
-}
-
-func (h pbkdf2Hasher) compareBytes(a, b []byte) bool {
-	for i, x := range a {
-		if b[i] != x {
+		if err != nil {
+			log.Errorf("base64 hash decoding error: %s", err)
 			return false
 		}
+	} else {
+		log.Errorf("invalid PBKDF2 hash supplied, unrecognized format")
+		return false
 	}
-	return true
+
+	if iterations <= 0 || keyLen <= 0 || len(hashedPassword) == 0 {
+		log.Errorf("invalid PBKDF2 hash supplied, missing iterations, key length or hash")
+		return false
+	}
+
+	newHashedPassword := h.key(password, salt, iterations, algorithm, keyLen)
+
+	return subtle.ConstantTimeCompare(hashedPassword, newHashedPassword) == 1
 }
 
 func (h pbkdf2Hasher) getFields(passwordHash string) []string {
@@ -182,18 +195,22 @@ func (h pbkdf2Hasher) getFields(passwordHash string) []string {
 	return hashSplit
 }
 
+func (h pbkdf2Hasher) key(password string, salt []byte, iterations int, algorithm string, keylen int) []byte {
+	shaHash := sha512.New
+	if algorithm == SHA256 {
+		shaHash = sha256.New
+	}
+
+	return pbkdf2.Key([]byte(password), salt, iterations, keylen, shaHash)
+}
+
 // Reference: https://github.com/brocaar/chirpstack-application-server/blob/master/internal/storage/user.go#L432.
 func (h pbkdf2Hasher) hashWithSalt(password string, salt []byte, iterations int, algorithm string, keylen int) string {
 	// Generate the hashed password. This should be a little painful, adjust ITERATIONS
 	// if it needs performance tweaking.  Greatly depends on the hardware.
 	// NOTE: We store these details with the returned hashed, so changes will not
 	// affect our ability to do password compares.
-	shaHash := sha512.New
-	if algorithm == SHA256 {
-		shaHash = sha256.New
-	}
-
-	hashed := pbkdf2.Key([]byte(password), salt, iterations, keylen, shaHash)
+	hashed := h.key(password, salt, iterations, algorithm, keylen)
 
 	var buffer bytes.Buffer
 

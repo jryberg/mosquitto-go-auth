@@ -1,6 +1,7 @@
 package hashing
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -99,6 +100,61 @@ func TestNewHasher(t *testing.T) {
 	bHasher, ok = hasher.(bcryptHasher)
 	assert.True(t, ok)
 	assert.Equal(t, 15, bHasher.cost)
+
+	// Values that don't fit in an int must fall back to the defaults instead of wrapping.
+	if strconv.IntSize == 32 {
+		hasher = NewHasher(map[string]string{"hasher": BcryptOpt, "hasher_cost": "4294967300"}, "")
+		bHasher, ok = hasher.(bcryptHasher)
+		assert.True(t, ok)
+		assert.Equal(t, defaultBcryptCost, bHasher.cost)
+
+		hasher = NewHasher(map[string]string{"hasher_iterations": "4294967396"}, "")
+		pHasher, ok = hasher.(pbkdf2Hasher)
+		assert.True(t, ok)
+		assert.Equal(t, defaultPBKDF2Iterations, pHasher.iterations)
+	}
+}
+
+func TestMalformedHashes(t *testing.T) {
+	// Not the password of the valid hashes below, so any match is a bypass.
+	password := "wrong-password"
+	pbkdf2Hasher := NewPBKDF2Hasher(defaultPBKDF2SaltSize, defaultPBKDF2Iterations, defaultPBKDF2Algorithm, Base64, defaultPBKDF2KeyLen)
+	argon2Hasher := NewArgon2IDHasher(defaultArgon2IDSaltSize, defaultArgon2IDIterations, defaultArgon2IDKeyLen, defaultArgon2IDMemory, defaultArgon2IDParallelism)
+
+	pbkdf2Hashes := map[string]string{
+		"Empty":                    "",
+		"NoSeparator":              "plaintext",
+		"OlderFormatTruncated":     "PBKDF2$sha512$100000",
+		"OlderFormatNoHash":        "PBKDF2$sha512$100000$c2FsdA==",
+		"PHCTruncated":             "$pbkdf2-sha512$i=10000,l=32",
+		"PHCOptionWithoutValue":    "$pbkdf2-sha512$i$/DsNR8DBuoF/MxzLY+QVaw$YNfYNfT+6yT2blLrXKKR8Ll+aesgHYqSOtFTBsyscRM",
+		"PHCUndecodableHash":       "$pbkdf2-sha512$i=10000,l=32$/DsNR8DBuoF/MxzLY+QVaw$!!!!",
+		"PHCKeyLenShorterThanHash": "$pbkdf2-sha512$i=10000,l=16$/DsNR8DBuoF/MxzLY+QVaw$YNfYNfT+6yT2blLrXKKR8Ll+aesgHYqSOtFTBsyscRM",
+		"PHCWithoutKeyLen":         "$pbkdf2-sha512$i=10000$/DsNR8DBuoF/MxzLY+QVaw$YNfYNfT+6yT2blLrXKKR8Ll+aesgHYqSOtFTBsyscRM",
+	}
+	for name, passwordHash := range pbkdf2Hashes {
+		t.Run("PBKDF2/"+name, func(t *testing.T) {
+			assert.NotPanics(t, func() {
+				assert.False(t, pbkdf2Hasher.Compare(password, passwordHash))
+			})
+		})
+	}
+
+	argon2Hashes := map[string]string{
+		"Empty":           "",
+		"NoSeparator":     "plaintext",
+		"OtherScheme":     "$pbkdf2-sha512$i=10000,l=32$/DsNR8DBuoF/MxzLY+QVaw$YNfYNfT+6yT2blLrXKKR8Ll+aesgHYqSOtFTBsyscRM",
+		"EmptyHash":       "$argon2id$v=19$m=4096,t=3,p=2$c2FsdHNhbHQ$",
+		"ZeroIterations":  "$argon2id$v=19$m=4096,t=0,p=2$c2FsdHNhbHQ$aGFzaGhhc2g",
+		"ZeroParallelism": "$argon2id$v=19$m=4096,t=3,p=0$c2FsdHNhbHQ$aGFzaGhhc2g",
+	}
+	for name, passwordHash := range argon2Hashes {
+		t.Run("Argon2ID/"+name, func(t *testing.T) {
+			assert.NotPanics(t, func() {
+				assert.False(t, argon2Hasher.Compare(password, passwordHash))
+			})
+		})
+	}
 }
 
 func TestBcrypt(t *testing.T) {

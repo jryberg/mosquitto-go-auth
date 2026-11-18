@@ -32,11 +32,11 @@ func NewJavascript(authOpts map[string]string, logLevel log.Level) (*Javascript,
 	missingOptions := ""
 
 	if stackLimit, ok := authOpts["js_stack_depth_limit"]; ok {
-		limit, err := strconv.ParseInt(stackLimit, 10, 64)
+		limit, err := strconv.Atoi(stackLimit)
 		if err != nil {
 			log.Errorf("invalid stack depth limit %s, defaulting to %d", stackLimit, js.DefaultStackDepthLimit)
 		} else {
-			javascript.stackDepthLimit = int(limit)
+			javascript.stackDepthLimit = limit
 		}
 	}
 

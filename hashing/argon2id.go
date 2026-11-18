@@ -46,12 +46,13 @@ func (h argon2IDHasher) Hash(password string) (string, error) {
 func (h argon2IDHasher) Compare(password string, passwordHash string) bool {
 	hashSplit := strings.Split(passwordHash, "$")
 
-	if hashSplit[1] != "argon2id" {
-		log.Errorf("unknown hash format: %s", hashSplit[1])
-	}
-
 	if len(hashSplit) != 6 {
 		log.Errorf("invalid hash supplied, expected 6 elements, got: %d", len(hashSplit))
+		return false
+	}
+
+	if hashSplit[1] != "argon2id" {
+		log.Errorf("unknown hash format, expected argon2id")
 		return false
 	}
 
@@ -74,6 +75,11 @@ func (h argon2IDHasher) Compare(password string, passwordHash string) bool {
 		return false
 	}
 
+	if iterations == 0 || parallelism == 0 {
+		log.Errorf("argon2id parameters error: iterations and parallelism must be greater than 0")
+		return false
+	}
+
 	salt, err := base64.RawStdEncoding.DecodeString(hashSplit[4])
 	if err != nil {
 		log.Errorf("base64 salt error: %s", err)
@@ -83,6 +89,11 @@ func (h argon2IDHasher) Compare(password string, passwordHash string) bool {
 	extractedHash, err := base64.RawStdEncoding.DecodeString(hashSplit[5])
 	if err != nil {
 		log.Errorf("argon2id decoding error: %s", err)
+		return false
+	}
+
+	if len(extractedHash) == 0 {
+		log.Errorf("argon2id hash error: empty hash")
 		return false
 	}
 

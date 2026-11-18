@@ -65,6 +65,25 @@ func TestFilesBackend(t *testing.T) {
 		So(granted, ShouldBeFalse)
 	})
 
+	Convey("When Files has only an acl file and registers all checks, users from the acl file must not authenticate", t, func() {
+		aclPath, err := filepath.Abs("../test-files/acls-only")
+		So(err, ShouldBeNil)
+
+		authOpts := map[string]string{
+			"backends":       "files",
+			"files_acl_path": aclPath,
+		}
+
+		b, err := Initialize(authOpts, log.DebugLevel, "test")
+		So(err, ShouldBeNil)
+
+		So(func() {
+			authenticated, err := b.AuthUnpwdCheck("some-user", "any-password", "client-id")
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
+		}, ShouldNotPanic)
+	})
+
 	Convey("With acls only test case", t, func() {
 		aclPath, err := filepath.Abs("../test-files/acls-read-only")
 		So(err, ShouldBeNil)
