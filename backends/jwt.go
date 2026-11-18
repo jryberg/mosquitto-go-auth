@@ -3,7 +3,7 @@ package backends
 import (
 	"fmt"
 
-	jwtGo "github.com/golang-jwt/jwt"
+	jwtGo "github.com/golang-jwt/jwt/v5"
 	"github.com/jryberg/mosquitto-go-auth/hashing"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -129,21 +129,19 @@ func getJWTClaims(secret string, tokenStr string, skipExpiration bool) (*jwtGo.M
 
 	jwtToken, err := jwtGo.ParseWithClaims(tokenStr, &jwtGo.MapClaims{}, func(token *jwtGo.Token) (interface{}, error) {
 		return []byte(secret), nil
-	})
+	}, jwtGo.WithValidMethods([]string{"HS256", "HS384", "HS512"}), jwtGo.WithIssuedAt())
 
 	expirationError := false
 	if err != nil {
-		if !skipExpiration {
+		if !skipExpiration || !isOnlyExpired(err) {
 			log.Debugf("jwt parse error: %s", err)
 			return nil, err
 		}
 
-		if v, ok := err.(*jwtGo.ValidationError); ok && v.Errors == jwtGo.ValidationErrorExpired {
-			expirationError = true
-		}
+		expirationError = true
 	}
 
-	if !jwtToken.Valid && !expirationError {
+	if jwtToken == nil || (!jwtToken.Valid && !expirationError) {
 		return nil, errors.New("jwt invalid token")
 	}
 
@@ -154,6 +152,15 @@ func getJWTClaims(secret string, tokenStr string, skipExpiration bool) (*jwtGo.M
 	}
 
 	return claims, nil
+}
+
+// isOnlyExpired reports whether expiration is the only reason the token was rejected.
+// Claims are validated after the signature, so ErrTokenInvalidClaims implies a valid signature.
+func isOnlyExpired(err error) bool {
+	return errors.Is(err, jwtGo.ErrTokenInvalidClaims) &&
+		errors.Is(err, jwtGo.ErrTokenExpired) &&
+		!errors.Is(err, jwtGo.ErrTokenNotValidYet) &&
+		!errors.Is(err, jwtGo.ErrTokenUsedBeforeIssued)
 }
 
 func getUsernameForToken(options tokenOptions, tokenStr string, skipExpiration bool) (string, error) {

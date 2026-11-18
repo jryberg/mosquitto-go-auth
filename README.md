@@ -888,6 +888,9 @@ The `jwt` backend is for auth with a JWT remote API, a local DB, a JavaScript VM
 | auth_opt_jwt_skip_acl_expiration  |   false   |     N     | Skip token expiration in ACL checks                     |
 | auth_opt_jwt_user_agent           | mosquitto |     N     | User agent for requests                                 |
 
+When a token is parsed, it must be signed with `jwt_secret` using HMAC (`HS256`, `HS384` or `HS512`); other algorithms, including `none`, are rejected.
+Skipping expiration only ignores an expired `exp` claim: tokens with an invalid signature, a future `nbf` or a future `iat` are still rejected.
+
 #### Remote mode
 
 The following options are supported by the `jwt` backend when remote is set to true:

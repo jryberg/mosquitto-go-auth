@@ -1,0 +1,4 @@
+trust:
+  packages:
+    - docker:library/debian
+    - docker:library/golang

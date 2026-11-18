@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	. "github.com/jryberg/mosquitto-go-auth/backends/constants"
 	"github.com/jryberg/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
@@ -111,6 +111,60 @@ func TestJWTClaims(t *testing.T) {
 
 			_, err = getJWTClaims(jwtSecret, token, true)
 			So(err, ShouldBeNil)
+		})
+
+		Convey("When skipping expiration, an expired token signed with a different secret should give an error", func() {
+			token, err := expiredToken.SignedString([]byte("wrong-secret"))
+			So(err, ShouldBeNil)
+
+			_, err = getJWTClaims(jwtSecret, token, true)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("When skipping expiration, an expired token that is not valid yet should give an error", func() {
+			token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+				"exp":      nowSecondsSinceEpoch - 60,
+				"nbf":      nowSecondsSinceEpoch + 3600,
+				"username": username,
+			}).SignedString([]byte(jwtSecret))
+			So(err, ShouldBeNil)
+
+			_, err = getJWTClaims(jwtSecret, token, true)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("A token issued in the future should give an error", func() {
+			token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+				"iat":      nowSecondsSinceEpoch + 3600,
+				"exp":      expSecondsSinceEpoch,
+				"username": username,
+			}).SignedString([]byte(jwtSecret))
+			So(err, ShouldBeNil)
+
+			_, err = getJWTClaims(jwtSecret, token, false)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("A token using the none algorithm should give an error", func() {
+			token, err := jwt.NewWithClaims(jwt.SigningMethodNone, jwt.MapClaims{
+				"exp":      expSecondsSinceEpoch,
+				"username": username,
+			}).SignedString(jwt.UnsafeAllowNoneSignatureType)
+			So(err, ShouldBeNil)
+
+			_, err = getJWTClaims(jwtSecret, token, false)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("Malformed tokens should give an error and not panic", func() {
+			for _, skipExpiration := range []bool{false, true} {
+				for _, token := range []string{"", "not-a-jwt", strings.Repeat(".", 10), "a.b.c"} {
+					So(func() {
+						_, err := getJWTClaims(jwtSecret, token, skipExpiration)
+						So(err, ShouldNotBeNil)
+					}, ShouldNotPanic)
+				}
+			}
 		})
 	})
 }
