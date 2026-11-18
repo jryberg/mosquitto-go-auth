@@ -1,10 +1,8 @@
-# Archived
-
-08/06/2025: I haven't used this plugin in almost 6 years nor have followed Mosquitto's changes in some time now.
-The plugin works perfectly fine at the moment but that might stop being true in time, so I'm archiving the project to make clear there will be no more changes to it.
-Thanks to everyone that had kinds words and appreciated the project.
-
 # Mosquitto Go Auth
+
+This is a maintained fork of [iegomez/mosquitto-go-auth](https://github.com/iegomez/mosquitto-go-auth), which was archived upstream in 2025.
+Container images are published to Docker Hub as [jryberg/mosquitto-go-auth](https://hub.docker.com/r/jryberg/mosquitto-go-auth).
+
 
 Mosquitto Go Auth is an authentication and authorization plugin for the Mosquitto MQTT broker.
 The name is terrible, I know, but it's too late to change it. And, you know: naming, cache invalidation, off-by-one errors and whatnot.
@@ -1637,15 +1635,15 @@ Only images for x86_64/AMD64 and ARMv7 have been tested. ARMv6 and ARM64 hardwar
 
 #### Prebuilt images
 
-Prebuilt images are provided on Dockerhub under [iegomez/mosquitto-go-auth](https://hub.docker.com/r/iegomez/mosquitto-go-auth).
+Prebuilt images are provided on Docker Hub under [jryberg/mosquitto-go-auth](https://hub.docker.com/r/jryberg/mosquitto-go-auth).
 To run the latest image, use the following command and replace `/conf` with the location of your `.conf` files:
-`docker run -it -p 1884:1884 -p 1883:1883 -v /conf:/etc/mosquitto iegomez/mosquitto-go-auth`
+`docker run -it -p 1884:1884 -p 1883:1883 -v /conf:/etc/mosquitto jryberg/mosquitto-go-auth:latest-mosquitto_2.1.4`
 
 You should also add the neccesary configuration to your .conf and update the path of the shared object:
 ```auth_plugin /mosquitto/go-auth.so```
 
-Images are tagged with the Mosquitto version they ship, for example `latest-mosquitto_2.1.4` and `<release>-mosquitto_2.1.4`.
-Only Mosquitto 2.1 images are built; the former `-mosquitto_1.6.x` and `-mosquitto_2.0.x` variants are no longer published.
+Images are tagged with the Mosquitto version they ship, for example `latest-mosquitto_2.1.4` and `<release>-mosquitto_2.1.4`; `latest` follows the master branch.
+Only Mosquitto 2.1 images are published. Older upstream images with Mosquitto 1.6 and 2.0 remain under [iegomez/mosquitto-go-auth](https://hub.docker.com/r/iegomez/mosquitto-go-auth) but are no longer updated.
 
 #### Building images
 
@@ -1656,7 +1654,7 @@ This allows building containers for x86_64/AMD64, ARMv6, ARMv7 and ARM64 on a si
 
 
 #### Step-by-step guide:
-* clone this repository: `git clone https://github.com/iegomez/mosquitto-go-auth.git`
+* clone this repository: `git clone https://github.com/jryberg/mosquitto-go-auth.git`
 * change into the project folder `cd mosquitto-go-auth`
 * build containers for your desired architectures: `docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 .`
 

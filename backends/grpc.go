@@ -13,7 +13,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
-	gs "github.com/iegomez/mosquitto-go-auth/grpc"
+	gs "github.com/jryberg/mosquitto-go-auth/grpc"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"

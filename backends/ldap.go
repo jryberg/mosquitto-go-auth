@@ -3,7 +3,7 @@ package backends
 import (
 	"fmt"
 	"github.com/go-ldap/ldap/v3"
-	"github.com/iegomez/mosquitto-go-auth/backends/topics"
+	"github.com/jryberg/mosquitto-go-auth/backends/topics"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"strconv"

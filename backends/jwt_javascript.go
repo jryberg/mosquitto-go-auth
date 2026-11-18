@@ -3,7 +3,7 @@ package backends
 import (
 	"strconv"
 
-	"github.com/iegomez/mosquitto-go-auth/backends/js"
+	"github.com/jryberg/mosquitto-go-auth/backends/js"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )

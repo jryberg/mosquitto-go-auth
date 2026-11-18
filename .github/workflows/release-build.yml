@@ -3,11 +3,14 @@ name: Build Linux Binaries
 on:
   release:
     types: [published]
+
+permissions: {}
+
 env:
   MOSQUITTO_VERSION: 2.1.4
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     steps:

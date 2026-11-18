@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/iegomez/mosquitto-go-auth/backends/topics"
-	"github.com/iegomez/mosquitto-go-auth/hashing"
+	"github.com/jryberg/mosquitto-go-auth/backends/topics"
+	"github.com/jryberg/mosquitto-go-auth/hashing"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"

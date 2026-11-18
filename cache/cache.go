@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	bes "github.com/iegomez/mosquitto-go-auth/backends"
 	"github.com/jellydator/ttlcache/v3"
+	bes "github.com/jryberg/mosquitto-go-auth/backends"
 	goredis "github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 )

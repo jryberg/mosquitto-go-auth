@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	mq "github.com/go-sql-driver/mysql"
-	"github.com/iegomez/mosquitto-go-auth/backends/topics"
-	"github.com/iegomez/mosquitto-go-auth/hashing"
+	"github.com/jryberg/mosquitto-go-auth/backends/topics"
+	"github.com/jryberg/mosquitto-go-auth/hashing"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"

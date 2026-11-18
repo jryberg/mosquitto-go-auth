@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	. "github.com/iegomez/mosquitto-go-auth/backends/constants"
-	"github.com/iegomez/mosquitto-go-auth/hashing"
+	. "github.com/jryberg/mosquitto-go-auth/backends/constants"
+	"github.com/jryberg/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 )

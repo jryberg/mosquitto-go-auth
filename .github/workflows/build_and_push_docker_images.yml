@@ -1,18 +1,23 @@
-name: Build docker images and publish to DockerHub
+name: Build docker images and publish to Docker Hub
 
 on:
   push:
     branches: [master]
   release:
     types: [published]
+
+permissions: {}
+
 env:
   MOSQUITTO_VERSION: 2.1.4
   MOSQUITTO_VERSION_SUFFIX: -mosquitto_
-  DOCKERHUB_REPO: mosquitto-go-auth
+  DOCKER_IMAGE: jryberg/mosquitto-go-auth
 jobs:
   build:
     name: Build and publish with Mosquitto 2.1
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -23,11 +28,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       
-      - name: Login to DockerHub
+      - name: Login to Docker Hub
         uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
       
       - name: Build and push on release
         if: github.event_name == 'release' && github.event.action == 'published'
@@ -37,10 +42,10 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6
           build-args: MOSQUITTO_VERSION=${{ env.MOSQUITTO_VERSION }}
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPO }}:${{ github.event.release.tag_name }}${{ format('{0}{1}', env.MOSQUITTO_VERSION_SUFFIX, env.MOSQUITTO_VERSION) }}
+          tags: ${{ env.DOCKER_IMAGE }}:${{ github.event.release.tag_name }}${{ format('{0}{1}', env.MOSQUITTO_VERSION_SUFFIX, env.MOSQUITTO_VERSION) }}
       
       - name: Build and push on push
-        if: github.event_name == 'push' && github.event.pull_request.merged == true
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -48,5 +53,5 @@ jobs:
           build-args: MOSQUITTO_VERSION=${{ env.MOSQUITTO_VERSION }}
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPO }}:latest${{ format('{0}{1}', env.MOSQUITTO_VERSION_SUFFIX, env.MOSQUITTO_VERSION) }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPO }}:latest
+            ${{ env.DOCKER_IMAGE }}:latest${{ format('{0}{1}', env.MOSQUITTO_VERSION_SUFFIX, env.MOSQUITTO_VERSION) }}
+            ${{ env.DOCKER_IMAGE }}:latest

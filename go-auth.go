@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	bes "github.com/iegomez/mosquitto-go-auth/backends"
-	"github.com/iegomez/mosquitto-go-auth/cache"
-	"github.com/iegomez/mosquitto-go-auth/hashing"
+	bes "github.com/jryberg/mosquitto-go-auth/backends"
+	"github.com/jryberg/mosquitto-go-auth/cache"
+	"github.com/jryberg/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
 )
 

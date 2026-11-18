@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/iegomez/mosquitto-go-auth/backends/constants"
-	"github.com/iegomez/mosquitto-go-auth/backends/topics"
-	"github.com/iegomez/mosquitto-go-auth/hashing"
+	. "github.com/jryberg/mosquitto-go-auth/backends/constants"
+	"github.com/jryberg/mosquitto-go-auth/backends/topics"
+	"github.com/jryberg/mosquitto-go-auth/hashing"
 	goredis "github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 )

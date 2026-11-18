@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	jwtGo "github.com/golang-jwt/jwt"
-	"github.com/iegomez/mosquitto-go-auth/hashing"
+	"github.com/jryberg/mosquitto-go-auth/hashing"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
