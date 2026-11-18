@@ -97,36 +97,42 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 This package uses `Go modules` to manage dependencies.
 As it interacts with `mosquitto`, it makes use of `cgo`. Also, it (optionally) uses Redis for cache purposes.
 
-*Important*: as of 23/05/2025, or May 23, 2025, I've switched Go cache backing package to https://github.com/jellydator/ttlcache, which makes use of generics.
-Following this change, I've bumped Go version to 1.24.3 and might explore opportunities to refactor code using additions since the last set version in this lib which was 1.18.
+The plugin requires Go 1.27.4 or later (see `go.mod`). The Go cache backend uses https://github.com/jellydator/ttlcache.
+
+The plugin is built and tested against Mosquitto 2.1.4.
 
 
 ### Build
 
-Before building, you need to build `mosquitto`. For completeness, we'll build it with `websockets`, `tls` and `srv` support.
+Before building, you need to build `mosquitto`. For completeness, we'll build it with `websockets` and `tls` support.
 
-First, install dependencies (tested on Debian 9 and later, Linux Mint 18, 19 and 20):
+Since Mosquitto 2.1, `WITH_WEBSOCKETS=yes` (the default) selects Mosquitto's built-in websockets support, so libwebsockets is no longer needed.
 
-`sudo apt-get install libwebsockets8 libwebsockets-dev libc-ares2 libc-ares-dev openssl uuid uuid-dev`
+First, install dependencies (the Docker images use Debian stable):
 
-Newer Mosquitto versions also depend on `cJson` for their dynamic-security plugin, so you should either install the deps or compile Mosquitto without it by changing `WITCH_CJSON` var at `config.mk` when building:
 ```
-sudo apt-get install libcjson1 libcjson-dev
+sudo apt-get install build-essential libssl-dev libcjson-dev
 ```
 
 Download mosquitto and extract it (**change versions accordingly**):
 
 ```
-wget http://mosquitto.org/files/source/mosquitto-2.0.15.tar.gz
-tar xzvf mosquitto-2.0.15.tar.gz
-cd mosquitto-2.0.15
+wget http://mosquitto.org/files/source/mosquitto-2.1.4.tar.gz
+tar xzvf mosquitto-2.1.4.tar.gz
+cd mosquitto-2.1.4
 ```
 
-Modify config.mk, setting websockets support. Then build mosquitto, add a mosquitto user and set ownership for /var/log/mosquitto and /var/lib/mosquitto/ (default log and persistence locations).
+Then build mosquitto, add a mosquitto user and set ownership for /var/log/mosquitto and /var/lib/mosquitto/ (default log and persistence locations).
+
+The flags below match the Docker build: they disable the sqlite persistence plugin, the `mosquitto_ctrl` shell and the HTTP API so no extra libraries are needed. Plugins are left out of the install because the persist-sqlite install ignores `WITH_SQLITE=no`, and the headers are installed explicitly because only the top-level install copies them. Drop the flags and use `make` and `sudo make install` instead if you have `libsqlite3-dev`, `libedit-dev` and `libmicrohttpd-dev` installed and want those features.
 
 ```
+export MAKEFLAGS="WITH_WEBSOCKETS=yes WITH_SQLITE=no WITH_EDITLINE=no WITH_HTTP_API=no"
 make
-sudo make install
+for d in libcommon lib apps client src; do sudo -E make -C "$d" install; done
+sudo install -d /usr/local/include/mosquitto
+sudo install -m 644 include/mosquitto/*.h /usr/local/include/mosquitto/
+sudo install -m 644 include/*.h /usr/local/include/
 sudo groupadd mosquitto
 sudo useradd -s /sbin/nologin mosquitto -g mosquitto -d /var/lib/mosquitto
 sudo mkdir -p /var/log/mosquitto/ /var/lib/mosquitto/
@@ -161,14 +167,14 @@ If you are running another distro or need more details on building mosquitto, pl
 Only Linux (tested in Debian, Ubuntu and Mint ùs) and MacOS are supported.
 
 Before attempting to build the plugin, make sure you have go installed on the system.
-The minimum required Go version for the current release is 1.18.
+The minimum required Go version for the current release is 1.27.4.
 To check which version (if any) of Go is installed on the system, simply run the following:
 
 ```
 go version
 ```
 
-If Go is not installed or the installed version is older than 1.18, please update it.
+If Go is not installed or the installed version is older than 1.27.4, please update it.
 You can retrieve and install the latest version of Go from the official [Go download website](https://go.dev/dl/) which also have installation instructions.
 
 This will fetch the go dependecies and then build the `go-auth.so` shared object:
@@ -180,14 +186,17 @@ make
 This assumes that `mosquitto.h`, `mosquitto_plugin.h` and `mosquitto_broker.h` are located at `/usr/include` or `/usr/local/include`
 on MacOS or debian-based systems (and probably other linux systems too).
 
+Since Mosquitto 2.1 these top-level headers include the ones in the `mosquitto/` subdirectory (for example `mosquitto_broker.h` includes `<mosquitto/broker.h>`),
+so the `mosquitto/` subdirectory must be installed under the same include path.
+
 On debian-based systems you can install the header files via apt (```apt install mosquitto-dev libmosquitto-dev```). They will be placed under `/usr/include`.
 
 On MacOS you can install the header files via homebrew (```brew install mosquitto```). MacOS on ARM hardware will place the header
 files under `/opt/homebrew/include` and on x86_64 (Intel) hardware under `/usr/local/homebrew/include`. You have to either copy these headers under `/usr/local/include`,
 create a symlink or configure `make` to include homebrew's include path too.
 
-You can also just download the header files at https://github.com/eclipse/mosquitto/tree/master/include (**change versions accordingly**)
-and place them under `/usr/local/include`.
+You can also just download the header files at https://github.com/eclipse-mosquitto/mosquitto/tree/v2.1.4/include (**change versions accordingly**)
+and place them, including the `mosquitto/` subdirectory, under `/usr/local/include`.
 
 If this doesn't work for your distribution or OS version, please check `Makefile` `CFLAGS` and `LDFLAGS` and adjust accordingly.
 File an issue or open a PR if you wish to contribute correct flags for your system.
@@ -216,7 +225,7 @@ Source the file (`source ~/.profile`) and check Go was correctly installed (`go 
 
 Now get requirements and build as usual (just have some more patience).
 
-##### Openssl and websockets notes
+##### Openssl notes
 
 There seems to be missing packages in some Raspbian versions, so you should try to apt update before installing dependencies. Alternatively, you cand build openssl like this:
 
@@ -227,19 +236,6 @@ cd openssl
 make
 make test
 sudo make install
-```
-
-For websockets support, you'll have to build libwebsockets, which needs cmake. So something like this should do the trick:
-
-```
-sudo apt-get install cmake
-git clone https://github.com/warmcat/libwebsockets.git
-cd libwebsockets
-mkdir build
-cd build
-cmake ..
-make
-make install
 ```
 
 ### Configuration
@@ -1646,6 +1642,9 @@ To run the latest image, use the following command and replace `/conf` with the 
 You should also add the neccesary configuration to your .conf and update the path of the shared object:
 ```auth_plugin /mosquitto/go-auth.so```
 
+Images are tagged with the Mosquitto version they ship, for example `latest-mosquitto_2.1.4` and `<release>-mosquitto_2.1.4`.
+Only Mosquitto 2.1 images are built; the former `-mosquitto_1.6.x` and `-mosquitto_2.0.x` variants are no longer published.
+
 #### Building images
 
 This project provides a Dockerfile for building a Docker container that contains `mosquitto` and the `mosquitto-go-auth` plug-in.
@@ -1660,7 +1659,7 @@ This allows building containers for x86_64/AMD64, ARMv6, ARMv7 and ARM64 on a si
 * build containers for your desired architectures: `docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 .`
 
 #### Base Image
-Since there are several issues with using `alpine` based images we are using `debian:stable-slim` for both our build and final image. The final image size is about 60 MB.
+Since there are several issues with using `alpine` based images we are using `debian:stable-slim` for both our build and final image. The final image size is about 180 MB.
 
 Documented issues:
 - https://github.com/iegomez/mosquitto-go-auth/issues/14
@@ -1668,7 +1667,10 @@ Documented issues:
 - https://github.com/iegomez/mosquitto-go-auth/issues/20
 
 #### Mosquitto version
-The Dockerfile compiles `mosquitto` using the source code from the version specified by `MOSQUITTO_VERSION`.
+The Dockerfile compiles `mosquitto` using the source code from the version specified by `MOSQUITTO_VERSION` (currently 2.1.4).
+Websockets use Mosquitto's built-in implementation (`WITH_WEBSOCKETS=yes`), so libwebsockets is not built. Mosquitto versions before 2.1 need libwebsockets for websockets support and are not supported by the Dockerfile.
+
+To build a different 2.1.x release, pass it as a build argument: `docker buildx build --build-arg MOSQUITTO_VERSION=2.1.4 .`
 
 >Mosquitto released versions can be found at https://mosquitto.org/files/source/
 

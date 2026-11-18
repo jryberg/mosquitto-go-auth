@@ -1,41 +1,14 @@
-# Define Mosquitto version, see also .github/workflows/build_and_push_docker_images.yml for
-# the automatically built images
-ARG MOSQUITTO_VERSION=2.0.18
-# Define libwebsocket version
-ARG LWS_VERSION=4.2.2
+# Define Mosquitto version
+ARG MOSQUITTO_VERSION=2.1.4
 
 # Use debian:stable-slim as a builder for Mosquitto and dependencies.
-FROM debian:stable-slim@sha256:fbfb4059d2127120aa05b6e6064523d2102552f0cf0026ddf0701c12f1f8f3e0 as mosquitto_builder
+FROM debian:stable-slim@sha256:fbfb4059d2127120aa05b6e6064523d2102552f0cf0026ddf0701c12f1f8f3e0 AS mosquitto_builder
 ARG MOSQUITTO_VERSION
-ARG LWS_VERSION
 
 # Get mosquitto build dependencies.
 RUN set -ex; \
     apt-get update; \
-    apt-get install -y wget build-essential cmake libssl-dev libcjson-dev
-
-# Get libwebsocket. Debian's libwebsockets is too old for Mosquitto version > 2.x so it gets built from source.
-RUN set -ex; \
-    wget https://github.com/warmcat/libwebsockets/archive/v${LWS_VERSION}.tar.gz -O /tmp/lws.tar.gz; \
-    mkdir -p /build/lws; \
-    tar --strip=1 -xf /tmp/lws.tar.gz -C /build/lws; \
-    rm /tmp/lws.tar.gz; \
-    cd /build/lws; \
-    cmake . \
-        -DCMAKE_BUILD_TYPE=MinSizeRel \
-        -DCMAKE_INSTALL_PREFIX=/usr \
-        -DLWS_IPV6=ON \
-        -DLWS_WITHOUT_BUILTIN_GETIFADDRS=ON \
-        -DLWS_WITHOUT_CLIENT=ON \
-        -DLWS_WITHOUT_EXTENSIONS=ON \
-        -DLWS_WITHOUT_TESTAPPS=ON \
-        -DLWS_WITH_HTTP2=OFF \
-        -DLWS_WITH_SHARED=OFF \
-        -DLWS_WITH_ZIP_FOPS=OFF \
-        -DLWS_WITH_ZLIB=OFF \
-        -DLWS_WITH_EXTERNAL_POLL=ON; \
-    make -j "$(nproc)"; \
-    rm -rf /root/.cmake
+    apt-get install -y wget build-essential libssl-dev libcjson-dev
 
 WORKDIR /app
 
@@ -45,17 +18,27 @@ RUN wget http://mosquitto.org/files/source/mosquitto-${MOSQUITTO_VERSION}.tar.gz
 
 RUN tar xzvf mosquitto-${MOSQUITTO_VERSION}.tar.gz
 
-# Build mosquitto.
+# Build mosquitto. WITH_WEBSOCKETS=yes selects the built-in websockets support,
+# so libwebsockets is not needed. The sqlite persistence plugin, the
+# mosquitto_ctrl shell and the HTTP API are disabled so the build and runtime
+# need no extra libraries. Plugins are not shipped, and are left out of the
+# install because the persist-sqlite install ignores WITH_SQLITE=no. Only the
+# top-level install copies the headers, so they are installed explicitly for
+# the go-auth build.
 RUN set -ex; \
     cd mosquitto-${MOSQUITTO_VERSION}; \
-    make CFLAGS="-Wall -O2 -I/build/lws/include" LDFLAGS="-L/build/lws/lib" WITH_WEBSOCKETS=yes; \
-    make install;
+    export MAKEFLAGS="WITH_WEBSOCKETS=yes WITH_SQLITE=no WITH_EDITLINE=no WITH_HTTP_API=no"; \
+    make CFLAGS="-Wall -O2"; \
+    for d in libcommon lib apps client src; do make -C "$d" install; done; \
+    install -d /usr/local/include/mosquitto; \
+    install -m 644 include/mosquitto/*.h /usr/local/include/mosquitto/; \
+    install -m 644 include/*.h /usr/local/include/
 
 # Use golang:latest as a builder for the Mosquitto Go Auth plugin.
 FROM --platform=$BUILDPLATFORM golang:latest@sha256:205c7636d74e0ffbe3d007162df7d74f859f5a8c8322dfb9f907977686c126cf AS go_auth_builder
 
 ENV CGO_CFLAGS="-I/usr/local/include -fPIC"
-ENV CGO_LDFLAGS="-shared -Wl,-unresolved-symbols=ignore-all"
+ENV CGO_LDFLAGS="-shared -Wl,-unresolved-symbols=ignore-all -fuse-ld=bfd"
 ENV CGO_ENABLED=1
 
 # Bring TARGETPLATFORM to the build scope
@@ -65,6 +48,8 @@ ARG BUILDPLATFORM
 # Install TARGETPLATFORM parser to translate its value to GOOS, GOARCH, and GOARM
 COPY --from=tonistiigi/xx:golang@sha256:03e312d98f8db5a7adbf403882347ee4cb620a97bd445b0cfdc8e6b47d3b319c / /
 RUN go env
+
+RUN apt-get update && apt-get install -y libcjson-dev
 
 # Install needed libc and gcc for target platform.
 RUN set -ex; \
@@ -96,7 +81,7 @@ FROM debian:stable-slim@sha256:fbfb4059d2127120aa05b6e6064523d2102552f0cf0026ddf
 
 RUN set -ex; \
     apt update; \
-    apt install -y libc-ares2 openssl uuid tini wget libssl-dev libcjson-dev
+    apt install -y libc-ares2 openssl uuid tini wget libssl3t64 libcjson1
 
 RUN mkdir -p /var/lib/mosquitto /var/log/mosquitto
 RUN set -ex; \

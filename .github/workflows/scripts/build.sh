@@ -1,9 +1,10 @@
 #!/bin/bash
 
 apt-get update
-apt-get install -y gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+apt-get install -y gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu libcjson-dev
 cd /usr/src/mosquitto-$MOSQUITTO_VERSION/include
 cp *.h /usr/include
+cp -r mosquitto /usr/include/
 cd /usr/src/mosquitto-go-auth
 
 #build amd64 Linux
