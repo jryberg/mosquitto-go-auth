@@ -12,9 +12,9 @@ import (
 	"github.com/iegomez/mosquitto-go-auth/hashing"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type Mongo struct {
@@ -136,7 +136,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		}
 	}
 
-	client, err := mongo.Connect(context.TODO(), &opts)
+	client, err := mongo.Connect(&opts)
 	if err != nil {
 		return m, errors.Errorf("couldn't start mongo backend: %s", err)
 	}

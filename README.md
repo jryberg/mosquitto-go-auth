@@ -1332,6 +1332,8 @@ Much like `redis`, to test this backend the plugin needs to be able to connect t
 
 All this requirements are met with a fresh installation of MongoDB without any custom configurations (at least when building or installing from the distro's repos in Debian based systems, and probably in other distros too).
 
+The Docker test image (`Dockerfile.runtest`) installs MongoDB 9.0 from MongoDB's Debian 13 (trixie) apt repository.
+
 As with `sqlite`, this backend constructs the collections and inserts relevant data, which are whiped out after testing is done, so no user actions are required.
 
 If you wish to test Mongo's auth, you'll need to run mongo with the `--auth` flag, have a user `go_auth_test` with password `go_auth_test` with the `dbOwner` role over the `mosquitto_test` DB and uncomment these lines from `mongo_test.go`:
